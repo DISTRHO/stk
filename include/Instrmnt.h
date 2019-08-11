@@ -77,6 +77,8 @@ class Instrmnt : public Stk
 
   StkFrames lastFrame_;
 
+  virtual void sampleRateChanged( StkFloat newRate, StkFloat /*oldRate*/ ) { lastFrame_.setDataRate( newRate ); }
+
 };
 
 inline void Instrmnt :: setFrequency( StkFloat frequency )

@@ -74,7 +74,10 @@ namespace stk {
 // following user-definable floating-point type.  You
 // can change this to "float" if you prefer or perhaps
 // a "long double" in the future.
-typedef double StkFloat;
+typedef float StkFloat;
+
+// The default sampling rate.
+const StkFloat SRATE = 48000.0;
 
 //! STK error handling class.
 /*!
@@ -142,7 +145,7 @@ public:
   static const StkFormat STK_FLOAT64; /*!< Normalized between plus/minus 1.0. */
 
   //! Static method that returns the current STK sample rate.
-  static StkFloat sampleRate( void ) { return srate_; }
+  StkFloat sampleRate( void ) { return srate_; }
 
   //! Static method that sets the STK sample rate.
   /*!
@@ -162,7 +165,7 @@ public:
     ignore such notifications, perhaps in a multi-rate context, the
     function Stk::ignoreSampleRateChange() should be called.
   */
-  static void setSampleRate( StkFloat rate );
+  void setSampleRate( StkFloat rate );
 
   //! A function to enable/disable the automatic updating of class data when the STK sample rate changes.
   /*!
@@ -171,10 +174,7 @@ public:
     class basis.
   */
   void ignoreSampleRateChange( bool ignore = true ) { ignoreSampleRateChange_ = ignore; };
-  
-  //! Static method that frees memory from alertList_.
-  static void  clear_alertList(){std::vector<Stk *>().swap(alertList_);};
-  
+
   //! Static method that returns the current rawwave path.
   static std::string rawwavePath(void) { return rawwavepath_; }
 
@@ -213,11 +213,10 @@ public:
   static void printErrors( bool status ) { printErrors_ = status; }
 
 private:
-  static StkFloat srate_;
+  StkFloat srate_;
   static std::string rawwavepath_;
   static bool showWarnings_;
   static bool printErrors_;
-  static std::vector<Stk *> alertList_;
 
 protected:
 
@@ -232,12 +231,6 @@ protected:
 
   //! This function should be implemented in subclasses that depend on the sample rate.
   virtual void sampleRateChanged( StkFloat newRate, StkFloat oldRate );
-
-  //! Add class pointer to list for sample rate change notification.
-  void addSampleRateAlert( Stk *ptr );
-
-  //! Remove class pointer from list for sample rate change notification.
-  void removeSampleRateAlert( Stk *ptr );
 
   //! Internal function for error reporting that assumes message in \c oStream_ variable.
   void handleError( StkError::Type type ) const;
@@ -277,10 +270,10 @@ class StkFrames
 public:
 
   //! The default constructor initializes the frame data structure to size zero.
-  StkFrames( unsigned int nFrames = 0, unsigned int nChannels = 0 );
+  StkFrames( unsigned int nFrames = 0, unsigned int nChannels = 0, StkFloat dataRate = SRATE );
 
   //! Overloaded constructor that initializes the frame data to the specified size with \c value.
-  StkFrames( const StkFloat& value, unsigned int nFrames, unsigned int nChannels );
+  StkFrames( const StkFloat& value, unsigned int nFrames, unsigned int nChannels, StkFloat dataRate );
 
   //! The destructor.
   ~StkFrames();
@@ -306,7 +299,7 @@ public:
     checking is performed unless _STK_DEBUG_ is defined.
   */
   StkFloat operator[] ( size_t n ) const;
-    
+
   //! Sum operator
   /*!
     The dimensions of the argument are expected to be the same as
@@ -359,7 +352,7 @@ public:
   StkFloat interpolate( StkFloat frame, unsigned int channel = 0 ) const;
 
   //! Returns the total number of audio samples represented by the object.
-  size_t size() const { return size_; }; 
+  size_t size() const { return size_; };
 
   //! Returns \e true if the object size is zero and \e false otherwise.
   bool empty() const;
@@ -488,7 +481,7 @@ inline StkFloat StkFrames :: operator() ( size_t frame, unsigned int channel ) c
 
   return data_[ frame * nChannels_ + channel ];
 }
-    
+
 inline StkFrames StkFrames::operator+(const StkFrames &f) const
 {
 #if defined(_STK_DEBUG_)
@@ -498,7 +491,7 @@ inline StkFrames StkFrames::operator+(const StkFrames &f) const
     Stk::handleError( error.str(), StkError::MEMORY_ACCESS );
   }
 #endif
-  StkFrames sum((unsigned int)nFrames_,nChannels_);
+  StkFrames sum((unsigned int)nFrames_,nChannels_,dataRate_);
   StkFloat *sumPtr = &sum[0];
   const StkFloat *fptr = f.data_;
   const StkFloat *dPtr = data_;
@@ -547,9 +540,6 @@ typedef signed short SINT16;
 typedef signed int SINT32;
 typedef float FLOAT32;
 typedef double FLOAT64;
-
-// The default sampling rate.
-const StkFloat SRATE = 44100.0;
 
 // The default real-time audio input and output buffer size.  If
 // clicks are occuring in the input and/or output sound stream, a

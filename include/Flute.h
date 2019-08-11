@@ -43,7 +43,7 @@ class Flute : public Instrmnt
   /*!
     An StkError will be thrown if the rawwave path is incorrectly set.
   */
-  Flute( StkFloat lowestFrequency );
+  Flute( StkFloat lowestFrequency = 10.0 );
 
   //! Class destructor.
   ~Flute( void );

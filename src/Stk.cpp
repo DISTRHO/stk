@@ -55,7 +55,6 @@
 
 namespace stk {
 
-StkFloat Stk :: srate_ = (StkFloat) SRATE;
 std::string Stk :: rawwavepath_ = RAWWAVE_PATH;
 const Stk::StkFormat Stk :: STK_SINT8   = 0x1;
 const Stk::StkFormat Stk :: STK_SINT16  = 0x2;
@@ -65,11 +64,11 @@ const Stk::StkFormat Stk :: STK_FLOAT32 = 0x10;
 const Stk::StkFormat Stk :: STK_FLOAT64 = 0x20;
 bool Stk :: showWarnings_ = true;
 bool Stk :: printErrors_ = true;
-std::vector<Stk *> Stk :: alertList_;
 std::ostringstream Stk :: oStream_;
 
 Stk :: Stk( void )
-  : ignoreSampleRateChange_(false)
+  : srate_( (StkFloat) SRATE ),
+    ignoreSampleRateChange_(false)
 {
 }
 
@@ -82,9 +81,7 @@ void Stk :: setSampleRate( StkFloat rate )
   if ( rate > 0.0 && rate != srate_ ) {
     StkFloat oldRate = srate_;
     srate_ = rate;
-
-    for ( unsigned int i=0; i<alertList_.size(); i++ )
-      alertList_[i]->sampleRateChanged( srate_, oldRate );
+    sampleRateChanged( srate_, oldRate );
   }
 }
 
@@ -93,24 +90,6 @@ void Stk :: sampleRateChanged( StkFloat /*newRate*/, StkFloat /*oldRate*/ )
   // This function should be reimplemented in classes that need to
   // make internal variable adjustments in response to a global sample
   // rate change.
-}
-
-void Stk :: addSampleRateAlert( Stk *ptr )
-{
-  for ( unsigned int i=0; i<alertList_.size(); i++ )
-    if ( alertList_[i] == ptr ) return;
-
-  alertList_.push_back( ptr );
-}
-
-void Stk :: removeSampleRateAlert( Stk *ptr )
-{
-  for ( unsigned int i=0; i<alertList_.size(); i++ ) {
-    if ( alertList_[i] == ptr ) {
-      alertList_.erase( alertList_.begin() + i );
-      return;
-    }
-  }
 }
 
 void Stk :: setRawwavePath( std::string path )
@@ -228,8 +207,8 @@ void Stk :: handleError( std::string message, StkError::Type type )
 // StkFrames definitions
 //
 
-StkFrames :: StkFrames( unsigned int nFrames, unsigned int nChannels )
-  : data_( 0 ), nFrames_( nFrames ), nChannels_( nChannels )
+StkFrames :: StkFrames( unsigned int nFrames, unsigned int nChannels, StkFloat dataRate )
+  : data_( 0 ), dataRate_(dataRate), nFrames_( nFrames ), nChannels_( nChannels )
 {
   size_ = nFrames_ * nChannels_;
   bufferSize_ = size_;
@@ -243,12 +222,10 @@ StkFrames :: StkFrames( unsigned int nFrames, unsigned int nChannels )
     }
 #endif
   }
-
-  dataRate_ = Stk::sampleRate();
 }
 
-StkFrames :: StkFrames( const StkFloat& value, unsigned int nFrames, unsigned int nChannels )
-  : data_( 0 ), nFrames_( nFrames ), nChannels_( nChannels )
+StkFrames :: StkFrames( const StkFloat& value, unsigned int nFrames, unsigned int nChannels, StkFloat dataRate )
+  : data_( 0 ), dataRate_(dataRate), nFrames_( nFrames ), nChannels_( nChannels )
 {
   size_ = nFrames_ * nChannels_;
   bufferSize_ = size_;
@@ -262,8 +239,6 @@ StkFrames :: StkFrames( const StkFloat& value, unsigned int nFrames, unsigned in
 #endif
     for ( long i=0; i<(long)size_; i++ ) data_[i] = value;
   }
-
-  dataRate_ = Stk::sampleRate();
 }
 
 StkFrames :: ~StkFrames()
@@ -275,7 +250,7 @@ StkFrames :: StkFrames( const StkFrames& f )
   : data_(0), size_(0), bufferSize_(0)
 {
   resize( f.frames(), f.channels() );
-  dataRate_ = Stk::sampleRate();
+  dataRate_ = f.dataRate();
   for ( unsigned int i=0; i<size_; i++ ) data_[i] = f[i];
 }
 
@@ -286,7 +261,7 @@ StkFrames& StkFrames :: operator= ( const StkFrames& f )
   size_ = 0;
   bufferSize_ = 0;
   resize( f.frames(), f.channels() );
-  dataRate_ = Stk::sampleRate();
+  dataRate_ = f.dataRate();
   for ( unsigned int i=0; i<size_; i++ ) data_[i] = f[i];
   return *this;
 }
@@ -316,7 +291,7 @@ void StkFrames :: resize( size_t nFrames, unsigned int nChannels, StkFloat value
 
   for ( size_t i=0; i<size_; i++ ) data_[i] = value;
 }
-    
+
 StkFrames& StkFrames::getChannel(unsigned int sourceChannel,StkFrames& destinationFrames, unsigned int destinationChannel) const
 {
 #if defined(_STK_DEBUG_)
@@ -345,7 +320,7 @@ StkFrames& StkFrames::getChannel(unsigned int sourceChannel,StkFrames& destinati
     destinationFrames[j] = data_[i];
   }
   return destinationFrames;
-        
+
 }
 
 void StkFrames::setChannel(unsigned int destinationChannel, const stk::StkFrames &sourceFrames,unsigned int sourceChannel)

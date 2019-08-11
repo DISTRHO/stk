@@ -27,12 +27,10 @@ ADSR :: ADSR( void )
   releaseTime_ = -1.0;
   sustainLevel_ = 0.5;
   state_ = IDLE;
-  Stk::addSampleRateAlert( this );
 }
 
 ADSR :: ~ADSR( void )
 {
-  Stk::removeSampleRateAlert( this );
 }
 
 void ADSR :: sampleRateChanged( StkFloat newRate, StkFloat oldRate )
